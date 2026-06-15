@@ -2,17 +2,24 @@
   "use strict";
 
   var STORAGE_KEY = "teamTodoList.v1";
+  var AUTH_KEY = "teamTodoList.users.v1";
+  var SESSION_KEY = "teamTodoList.session.v1";
   var DAY_MS = 24 * 60 * 60 * 1000;
 
   var state = {
     tasks: [],
     collaborators: [],
+    currentUser: null,
     folder: "todo",
     view: "list",
     calendarDate: new Date()
   };
 
   var elements = {
+    authScreen: document.getElementById("authScreen"),
+    appShell: document.getElementById("appShell"),
+    loginForm: document.getElementById("loginForm"),
+    registerForm: document.getElementById("registerForm"),
     pageTitle: document.getElementById("pageTitle"),
     taskForm: document.getElementById("taskForm"),
     inviteForm: document.getElementById("inviteForm"),
@@ -40,6 +47,8 @@
     notificationButton: document.getElementById("notificationButton"),
     shareButton: document.getElementById("shareButton"),
     copyInviteButton: document.getElementById("copyInviteButton"),
+    currentUserPill: document.getElementById("currentUserPill"),
+    logoutButton: document.getElementById("logoutButton"),
     prevMonth: document.getElementById("prevMonth"),
     nextMonth: document.getElementById("nextMonth")
   };
@@ -47,15 +56,26 @@
   init();
 
   function init() {
-    loadState();
-    importSharedData();
-    setDefaultDates();
     bindEvents();
-    render();
-    runDailyReminderCheck();
+    loadSession();
+    if (state.currentUser) {
+      showAuthenticatedApp();
+    } else {
+      showAuthScreen("login");
+    }
   }
 
   function bindEvents() {
+    elements.loginForm.addEventListener("submit", loginUser);
+    elements.registerForm.addEventListener("submit", registerUser);
+    elements.logoutButton.addEventListener("click", logoutUser);
+
+    document.querySelectorAll("[data-auth-tab]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        showAuthScreen(button.dataset.authTab);
+      });
+    });
+
     elements.taskForm.addEventListener("submit", addTask);
     elements.inviteForm.addEventListener("submit", sendInvite);
 
@@ -142,9 +162,145 @@
     });
   }
 
-  function loadState() {
+  function showAuthenticatedApp() {
+    loadState();
+    importSharedData();
+    setDefaultDates();
+    elements.currentUserPill.textContent = state.currentUser.username;
+    elements.authScreen.classList.add("is-hidden");
+    elements.appShell.classList.remove("is-hidden");
+    render();
+    runDailyReminderCheck();
+  }
+
+  function showAuthScreen(tab) {
+    var activeTab = tab || "login";
+    elements.authScreen.classList.remove("is-hidden");
+    elements.appShell.classList.add("is-hidden");
+    elements.loginForm.classList.toggle("is-hidden", activeTab !== "login");
+    elements.registerForm.classList.toggle("is-hidden", activeTab !== "register");
+    document.querySelectorAll("[data-auth-tab]").forEach(function (button) {
+      button.classList.toggle("is-active", button.dataset.authTab === activeTab);
+    });
+  }
+
+  async function registerUser(event) {
+    event.preventDefault();
+    var form = new FormData(elements.registerForm);
+    var contact = String(form.get("contact") || "").trim();
+    var username = String(form.get("username") || "").trim();
+    var password = String(form.get("password") || "");
+    var confirmPassword = String(form.get("confirmPassword") || "");
+    var normalized = normalizeUsername(username);
+    var users = getUsers();
+
+    if (!isValidContact(contact)) {
+      showToast("请输入手机号或 Email");
+      return;
+    }
+    if (username.length < 2 || username.length > 40) {
+      showToast("用户名需要 2-40 个字符");
+      return;
+    }
+    if (password.length < 6) {
+      showToast("密码至少 6 位");
+      return;
+    }
+    if (password !== confirmPassword) {
+      showToast("两次密码不一致");
+      return;
+    }
+    if (users.some(function (user) { return user.normalizedUsername === normalized; })) {
+      showToast("用户名已存在");
+      return;
+    }
+    if (users.some(function (user) { return user.contact.toLowerCase() === contact.toLowerCase(); })) {
+      showToast("手机号或 Email 已注册");
+      return;
+    }
+
+    var user = {
+      id: createId(),
+      username: username,
+      normalizedUsername: normalized,
+      contact: contact,
+      passwordSalt: createId(),
+      passwordHash: "",
+      createdAt: new Date().toISOString()
+    };
+    user.passwordHash = await hashPassword(password, user.passwordSalt);
+    users.push(user);
+    saveUsers(users);
+    setSession(user);
+    elements.registerForm.reset();
+    showAuthenticatedApp();
+    showToast("注册成功");
+  }
+
+  async function loginUser(event) {
+    event.preventDefault();
+    var form = new FormData(elements.loginForm);
+    var username = String(form.get("username") || "").trim();
+    var password = String(form.get("password") || "");
+    var users = getUsers();
+    var user = users.find(function (item) {
+      return item.normalizedUsername === normalizeUsername(username);
+    });
+
+    if (!user) {
+      showToast("用户名不存在");
+      return;
+    }
+    if (await hashPassword(password, user.passwordSalt) !== user.passwordHash) {
+      showToast("密码不正确");
+      return;
+    }
+
+    setSession(user);
+    elements.loginForm.reset();
+    showAuthenticatedApp();
+    showToast("登录成功");
+  }
+
+  function logoutUser() {
+    localStorage.removeItem(SESSION_KEY);
+    state.currentUser = null;
+    state.tasks = [];
+    state.collaborators = [];
+    showAuthScreen("login");
+    showToast("已退出");
+  }
+
+  function loadSession() {
+    var sessionUserId = "";
     try {
-      var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      sessionUserId = JSON.parse(localStorage.getItem(SESSION_KEY) || "{}").userId || "";
+    } catch (_error) {
+      sessionUserId = "";
+    }
+    state.currentUser = getUsers().find(function (user) {
+      return user.id === sessionUserId;
+    }) || null;
+  }
+
+  function setSession(user) {
+    state.currentUser = {
+      id: user.id,
+      username: user.username,
+      normalizedUsername: user.normalizedUsername,
+      contact: user.contact
+    };
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ userId: user.id }));
+  }
+
+  function loadState() {
+    if (!state.currentUser) {
+      state.tasks = [];
+      state.collaborators = [];
+      return;
+    }
+    try {
+      var saved = JSON.parse(localStorage.getItem(userStorageKey()) || "{}");
       state.tasks = Array.isArray(saved.tasks) ? saved.tasks : [];
       state.collaborators = Array.isArray(saved.collaborators) ? saved.collaborators : [];
     } catch (_error) {
@@ -154,8 +310,11 @@
   }
 
   function saveState() {
+    if (!state.currentUser) {
+      return;
+    }
     localStorage.setItem(
-      STORAGE_KEY,
+      userStorageKey(),
       JSON.stringify({
         tasks: state.tasks,
         collaborators: state.collaborators
@@ -611,6 +770,55 @@
       month: "short",
       day: "numeric"
     }).format(parseDate(key));
+  }
+
+  function userStorageKey() {
+    return STORAGE_KEY + "." + state.currentUser.id;
+  }
+
+  function getUsers() {
+    try {
+      var users = JSON.parse(localStorage.getItem(AUTH_KEY) || "[]");
+      return Array.isArray(users) ? users : [];
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function saveUsers(users) {
+    localStorage.setItem(AUTH_KEY, JSON.stringify(users));
+  }
+
+  function normalizeUsername(username) {
+    return String(username || "").trim().toLowerCase();
+  }
+
+  function isValidContact(contact) {
+    var value = String(contact || "").trim();
+    var email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    var phone = /^\+?[0-9][0-9\s-]{5,18}[0-9]$/;
+    return email.test(value) || phone.test(value);
+  }
+
+  async function hashPassword(password, salt) {
+    var input = salt + ":" + password;
+    if (window.crypto && window.crypto.subtle && window.TextEncoder) {
+      var data = new TextEncoder().encode(input);
+      var digest = await window.crypto.subtle.digest("SHA-256", data);
+      return Array.from(new Uint8Array(digest)).map(function (byte) {
+        return byte.toString(16).padStart(2, "0");
+      }).join("");
+    }
+    return fallbackHash(input);
+  }
+
+  function fallbackHash(text) {
+    var hash = 2166136261;
+    for (var i = 0; i < text.length; i += 1) {
+      hash ^= text.charCodeAt(i);
+      hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    }
+    return (hash >>> 0).toString(16);
   }
 
   function createId() {

@@ -7,7 +7,53 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app-shell">
+  <section class="auth-screen" id="authScreen">
+    <div class="auth-card">
+      <div class="brand auth-brand">
+        <span class="brand-mark" aria-hidden="true">T</span>
+        <span>Team Tasks</span>
+      </div>
+
+      <div class="auth-tabs" role="tablist" aria-label="Account">
+        <button class="is-active" type="button" data-auth-tab="login">登录</button>
+        <button type="button" data-auth-tab="register">注册</button>
+      </div>
+
+      <form class="auth-form" id="loginForm" autocomplete="on">
+        <label class="field">
+          <span>用户名</span>
+          <input name="username" type="text" autocomplete="username" required>
+        </label>
+        <label class="field">
+          <span>密码</span>
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="button" type="submit">登录</button>
+      </form>
+
+      <form class="auth-form is-hidden" id="registerForm" autocomplete="on">
+        <label class="field">
+          <span>手机号或 Email</span>
+          <input name="contact" type="text" autocomplete="email" required>
+        </label>
+        <label class="field">
+          <span>用户名</span>
+          <input name="username" type="text" autocomplete="username" required maxlength="40">
+        </label>
+        <label class="field">
+          <span>密码</span>
+          <input name="password" type="password" autocomplete="new-password" required minlength="6">
+        </label>
+        <label class="field">
+          <span>确认密码</span>
+          <input name="confirmPassword" type="password" autocomplete="new-password" required minlength="6">
+        </label>
+        <button class="button" type="submit">注册</button>
+      </form>
+    </div>
+  </section>
+
+  <div class="app-shell is-hidden" id="appShell">
     <aside class="sidebar">
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">T</span>
@@ -46,8 +92,10 @@
           <h1 id="pageTitle">待办</h1>
         </div>
         <div class="header-actions">
+          <span class="user-pill" id="currentUserPill"></span>
           <button class="button secondary" type="button" id="notificationButton">开启提醒</button>
           <button class="button" type="button" id="shareButton">分享链接</button>
+          <button class="button secondary" type="button" id="logoutButton">退出</button>
         </div>
       </header>
 
