@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Team To-do List</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">T</span>
+        <span>Team Tasks</span>
+      </div>
+
+      <nav class="nav-stack" aria-label="Folder">
+        <button class="nav-item is-active" type="button" data-folder="todo">
+          <span>待办</span>
+          <span class="count" id="todoCount">0</span>
+        </button>
+        <button class="nav-item" type="button" data-folder="completed">
+          <span>已完成</span>
+          <span class="count" id="completedCount">0</span>
+        </button>
+        <button class="nav-item" type="button" data-folder="reminders">
+          <span>提醒</span>
+          <span class="count warning" id="reminderCount">0</span>
+        </button>
+        <button class="nav-item" type="button" data-folder="collaboration">
+          <span>协作</span>
+          <span class="count" id="collaboratorCount">0</span>
+        </button>
+      </nav>
+
+      <section class="sidebar-panel" aria-labelledby="dueSoonTitle">
+        <h2 id="dueSoonTitle">三天内</h2>
+        <div id="dueSoonMini" class="mini-list"></div>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <header class="workspace-header">
+        <div>
+          <p class="eyebrow">Shared workspace</p>
+          <h1 id="pageTitle">待办</h1>
+        </div>
+        <div class="header-actions">
+          <button class="button secondary" type="button" id="notificationButton">开启提醒</button>
+          <button class="button" type="button" id="shareButton">分享链接</button>
+        </div>
+      </header>
+
+      <section class="composer" id="composerPanel" aria-labelledby="composerTitle">
+        <div class="section-heading">
+          <h2 id="composerTitle">新增事件</h2>
+        </div>
+        <form id="taskForm" autocomplete="off">
+          <div class="composer-grid">
+            <label class="field title-field">
+              <span>事件名称</span>
+              <input name="title" type="text" maxlength="120" required placeholder="输入具体名字">
+            </label>
+
+            <label class="field">
+              <span>类型</span>
+              <select name="type" id="eventType">
+                <option value="single">单一事件</option>
+                <option value="range">连续事件</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>开始日期</span>
+              <input name="startDate" type="date" id="startDate">
+            </label>
+
+            <label class="field">
+              <span>截止日期</span>
+              <input name="dueDate" type="date" id="dueDate" required>
+            </label>
+
+            <label class="field">
+              <span>开始时间</span>
+              <input name="startTime" type="time">
+            </label>
+
+            <label class="field">
+              <span>结束时间</span>
+              <input name="endTime" type="time">
+            </label>
+
+            <label class="field">
+              <span>负责人</span>
+              <input name="owner" type="text" maxlength="80" placeholder="Me">
+            </label>
+
+            <label class="field description-field">
+              <span>Description</span>
+              <textarea name="description" rows="3" maxlength="600" placeholder="可选"></textarea>
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="button" type="submit">新增</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="toolbar" id="viewToolbar" aria-label="View switcher">
+        <div class="segmented" role="tablist" aria-label="View">
+          <button class="is-active" type="button" data-view="list">List</button>
+          <button type="button" data-view="calendar">Calendar</button>
+        </div>
+        <div class="toolbar-meta" id="toolbarMeta"></div>
+      </section>
+
+      <section class="panel" id="listPanel">
+        <div class="task-list" id="taskList"></div>
+      </section>
+
+      <section class="panel calendar-panel is-hidden" id="calendarPanel">
+        <div class="calendar-header">
+          <button class="icon-button" type="button" id="prevMonth" aria-label="Previous month">‹</button>
+          <h2 id="calendarTitle">Month</h2>
+          <button class="icon-button" type="button" id="nextMonth" aria-label="Next month">›</button>
+        </div>
+        <div class="weekday-grid" aria-hidden="true">
+          <span>一</span>
+          <span>二</span>
+          <span>三</span>
+          <span>四</span>
+          <span>五</span>
+          <span>六</span>
+          <span>日</span>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </section>
+
+      <section class="panel is-hidden" id="reminderPanel">
+        <div class="section-heading">
+          <h2>截止日期提示</h2>
+        </div>
+        <div class="task-list" id="reminderList"></div>
+      </section>
+
+      <section class="panel is-hidden" id="collaborationPanel">
+        <div class="section-heading">
+          <h2>协作</h2>
+        </div>
+        <form class="invite-form" id="inviteForm" autocomplete="off">
+          <label class="field">
+            <span>Email</span>
+            <input name="email" type="email" placeholder="coworker@example.com">
+          </label>
+          <label class="field">
+            <span>名字</span>
+            <input name="name" type="text" maxlength="80" placeholder="Coworker">
+          </label>
+          <button class="button" type="submit">邮件邀请</button>
+        </form>
+        <div class="collab-actions">
+          <button class="button secondary" type="button" id="copyInviteButton">复制分享链接</button>
+        </div>
+        <div class="collaborator-list" id="collaboratorList"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
