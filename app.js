@@ -375,8 +375,6 @@
       type: type,
       startDate: startDate,
       dueDate: dueDate,
-      startTime: String(form.get("startTime") || ""),
-      endTime: String(form.get("endTime") || ""),
       owner: String(form.get("owner") || "Me").trim() || "Me",
       completed: false,
       completedAt: "",
@@ -508,7 +506,6 @@
       "</div>",
       '<div class="task-meta">',
       '<span>' + escapeHtml(due) + "</span>",
-      task.startTime ? '<span>' + escapeHtml(timeLabel(task)) + "</span>" : "",
       '<span>' + escapeHtml(task.owner || "Me") + "</span>",
       "</div>",
       task.description ? '<p class="task-description">' + escapeHtml(task.description) + "</p>" : "",
@@ -569,7 +566,6 @@
   function renderCalendarChip(task) {
     return [
       '<span class="calendar-chip' + (task.completed ? " done" : "") + '">',
-      task.startTime ? '<span class="time">' + escapeHtml(timeLabel(task)) + "</span>" : "",
       escapeHtml(task.title),
       "</span>"
     ].join("");
@@ -625,13 +621,12 @@
       }
       return dateKey === task.dueDate;
     }).sort(function (a, b) {
-      return String(a.startTime || "99:99").localeCompare(String(b.startTime || "99:99")) || compareByDueDate(a, b);
+      return compareByDueDate(a, b);
     });
   }
 
   function compareByDueDate(a, b) {
     return String(a.dueDate).localeCompare(String(b.dueDate)) ||
-      String(a.startTime || "").localeCompare(String(b.startTime || "")) ||
       String(a.title).localeCompare(String(b.title));
   }
 
@@ -738,10 +733,6 @@
       return dueText + " · " + diff + " 天后截止";
     }
     return dueText;
-  }
-
-  function timeLabel(task) {
-    return task.startTime + (task.endTime ? " - " + task.endTime : "");
   }
 
   function daysUntil(dateKey) {

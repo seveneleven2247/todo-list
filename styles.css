@@ -602,12 +602,6 @@ h1 {
   text-decoration: line-through;
 }
 
-.calendar-chip .time {
-  display: block;
-  color: var(--muted);
-  font-weight: 800;
-}
-
 .invite-form {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
